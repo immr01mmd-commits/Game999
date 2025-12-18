@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+<meta charset="UTF-8">
+<title>Mine Legends</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+<style>
+body{
+  margin:0;
+  font-family:sans-serif;
+  background:#0f172a;
+  color:white;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh
+}
+.app{
+  width:100%;
+  max-width:420px;
+  background:#020617;
+  border-radius:18px;
+  padding:12px
+}
+.stats{
+  display:flex;
+  justify-content:space-between;
+  background:#020617;
+  padding:8px;
+  border-radius:10px
+}
+.mine{
+  width:150px;
+  height:150px;
+  border-radius:50%;
+  background:#22c55e;
+  margin:12px auto;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:42px;
+  cursor:pointer
+}
+.tabs{
+  display:flex;
+  flex-wrap:wrap;
+  gap:4px
+}
+.tabs button{
+  flex:1;
+  border:none;
+  border-radius:8px;
+  padding:6px;
+  background:#1e293b;
+  color:white
+}
+.box{display:none;margin-top:6px}
+.box.active{display:block}
+.card{
+  background:#1e293b;
+  border-radius:10px;
+  padding:8px;
+  margin-bottom:6px
+}
+.skin{
+  padding:6px;
+  border-radius:6px;
+  background:#020617;
+  margin-top:4px;
+  cursor:pointer
+}
+.skin.active{background:#22c55e;color:black}
+.progress{
+  background:#1e293b;
+  border-radius:6px;
+  overflow:hidden;
+  height:12px
+}
+.bar{
+  background:#22c55e;
+  height:100%;
+  width:0%
+}
+.gold{color:#facc15}
+.silver{color:#e5e7eb}
+.bronze{color:#f97316}
+button{cursor:pointer}
+</style>
+</head>
+
+<body>
+<div class="app">
+<h3 style="text-align:center">⛏ Mine Legends</h3>
+
+<div class="stats">
+  <div>💰 <span id="coin">0</span></div>
+  <div>⭐ Lv <span id="level">0</span></div>
+</div>
+
+<div class="progress"><div id="xpbar" class="bar"></div></div>
+
+<div id="char" style="text-align:center;font-size:40px">👷</div>
+<div id="pick" class="mine" onclick="mine()">⛏</div>
+
+<div class="tabs">
+  <button onclick="tab('up')">⬆️</button>
+  <button onclick="tab('quest')">📜</button>
+  <button onclick="tab('shop')">🏪</button>
+  <button onclick="tab('skin')">🎨</button>
+  <button onclick="tab('ach')">🏅</button>
+  <button onclick="tab('rank')">🏆</button>
+  <button onclick="tab('info')">ℹ️</button>
+  <button onclick="tab('dev')">📩</button>
+</div>
+
+<!-- UP -->
+<div id="up" class="box active">
+  <div class="card">
+    Power: <span id="power">1</span>
+    <button onclick="upgrade()">Upgrade (10)</button>
+  </div>
+  <div class="card">
+    <button onclick="autoMine()">Auto Mine (50)</button>
+  </div>
+</div>
+
+<!-- QUEST -->
+<div id="quest" class="box"></div>
+
+<!-- SHOP -->
+<div id="shop" class="box">
+  <div class="card">🎁 Daily Reward <button onclick="daily()">Claim</button></div>
+  <div class="card">⚡ Booster (200) <button onclick="booster()">Use</button></div>
+  <div class="card">🧿 Relic (500) <button onclick="relic()">Buy</button></div>
+</div>
+
+<!-- SKIN -->
+<div id="skin" class="box">
+  <div class="card"><b>👷 Skins</b>
+    <div class="skin active" onclick="setChar('👷',this)">👷 Default</div>
+    <div class="skin" onclick="buyChar('🤖',300,this)">🤖 Robot</div>
+    <div class="skin" onclick="buyChar('🧙',600,this)">🧙 Wizard</div>
+    <div class="skin" onclick="buyChar('🦸',900,this)">🦸 Hero</div>
+    <div class="skin" onclick="buyChar('👑',1500,this)">👑 King</div>
+  </div>
+
+  <div class="card"><b>⛏ Pickaxes</b>
+    <div class="skin active" onclick="setPick('⛏',this)">⛏ Default</div>
+    <div class="skin" onclick="buyPick('💎',400,this)">💎 Diamond</div>
+    <div class="skin" onclick="buyPick('🔥',700,this)">🔥 Fire</div>
+    <div class="skin" onclick="buyPick('⚡',1000,this)">⚡ Thunder</div>
+  </div>
+</div>
+
+<!-- ACH -->
+<div id="ach" class="box">
+  <div class="card" id="achList"></div>
+</div>
+
+<!-- RANK -->
+<div id="rank" class="box">
+  <div class="card" id="rankList"></div>
+</div>
+
+<!-- INFO -->
+<div id="info" class="box">
+  <div class="card" id="infoBox"></div>
+</div>
+
+<!-- DEV -->
+<div id="dev" class="box">
+  <div class="card">
+    👤 سازنده:<br>
+    <a href="https://t.me/ImMr_Mmd" target="_blank">@ImMr_Mmd</a><br><br>
+    📣 کانال گیم:<br>
+    <a href="https://t.me/Im_Irooni" target="_blank">@Im_Irooni</a>
+  </div>
+</div>
+</div>
+
+<script>
+const tg = window.Telegram.WebApp;
+tg.ready(); tg.expand();
+
+const uid = tg.initDataUnsafe?.user?.id || "guest";
+const key = "mine_"+uid;
+
+let data = JSON.parse(localStorage.getItem(key)) || {
+  name: prompt("اسم پلیر؟") || "Miner",
+  coin:0, level:0, xp:0, power:1,
+  char:"👷", pick:"⛏",
+  chars:["👷"], picks:["⛏"],
+  auto:false, lastDaily:0, ach:[]
+};
+
+function save(){
+  localStorage.setItem(key,JSON.stringify(data));
+  coin.innerText=data.coin;
+  level.innerText=data.level;
+  power.innerText=data.power;
+  xpbar.style.width=Math.min(data.xp/(data.level*40+40)*100,100)+"%";
+  char.innerText=data.char;
+  pick.innerText=data.pick;
+  infoBox.innerHTML=`👤 ${data.name}<br>💰 ${data.coin}<br>⭐ Lv ${data.level}<br>⚡ Power ${data.power}`;
+}
+
+function mine(){
+  data.coin+=data.power;
+  data.xp+=data.power;
+  levelUp();
+  checkAch();
+  save();
+}
+
+function levelUp(){
+  let need = data.level*40+40;
+  if(data.xp>=need){
+    data.level++;
+    data.xp=0;
+    alert("🎉 لول آپ!");
+  }
+}
+
+function upgrade(){
+  let cost=data.power*10;
+  if(data.coin>=cost){
+    data.coin-=cost;
+    data.power++;
+    save();
+  }
+}
+
+function autoMine(){
+  if(data.auto||data.coin<50)return;
+  data.coin-=50;
+  data.auto=true;
+  setInterval(()=>mine(),2000);
+  save();
+}
+
+function daily(){
+  let now=Date.now();
+  if(now-data.lastDaily<86400000)return alert("❌ امروز گرفتی");
+  data.lastDaily=now;
+  data.coin+=100;
+  save();
+}
+
+function booster(){
+  if(data.coin<200)return;
+  data.coin-=200;
+  data.power*=2;
+  setTimeout(()=>{data.power/=2;save()},30000);
+  save();
+}
+
+function relic(){
+  if(data.coin<500)return;
+  data.coin-=500;
+  data.power++;
+  save();
+}
+
+function buyChar(c,p,el){
+  if(data.coin>=p&&!data.chars.includes(c)){
+    data.coin-=p;
+    data.chars.push(c);
+    setChar(c,el);
+    save();
+  }
+}
+function setChar(c,el){
+  data.char=c;
+  document.querySelectorAll("#skin .card:nth-child(1) .skin").forEach(s=>s.classList.remove("active"));
+  el.classList.add("active");
+}
+
+function buyPick(p,c,el){
+  if(data.coin>=c&&!data.picks.includes(p)){
+    data.coin-=c;
+    data.picks.push(p);
+    setPick(p,el);
+    save();
+  }
+}
+function setPick(p,el){
+  data.pick=p;
+  document.querySelectorAll("#skin .card:nth-child(2) .skin").forEach(s=>s.classList.remove("active"));
+  el.classList.add("active");
+}
+
+function checkAch(){
+  if(data.coin>=500&&!data.ach.includes("500 Coins"))data.ach.push("500 Coins");
+  if(data.level>=5&&!data.ach.includes("Level 5"))data.ach.push("Level 5");
+  achList.innerHTML=data.ach.map(a=>"✅ "+a).join("<br>");
+}
+
+function tab(id){
+  document.querySelectorAll(".box").forEach(b=>b.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+}
+
+save();
+</script>
+</body>
+</html>
